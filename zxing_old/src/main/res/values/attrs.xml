@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <declare-styleable name="ViewfinderView">
+        <attr name="vfvText"  format="string"/>
+        <attr name="vfvTextSize"  format="integer"/>
+        <attr name="edgeColor"  format="color"/>
+        <attr name="hornColor"  format="color"/>
+        <attr name="scanningCodeStrip"  format="reference"/>
+
+    </declare-styleable>
+
+</resources>
