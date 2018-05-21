@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <item name="zxing_decode" type="id"/>
+    <item name="zxing_quit" type="id"/>
+    <item name="zxing_decode_succeeded" type="id"/>
+    <item name="zxing_decode_failed" type="id"/>
+</resources>

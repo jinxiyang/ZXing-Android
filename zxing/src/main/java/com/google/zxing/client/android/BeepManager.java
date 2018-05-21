@@ -13,7 +13,7 @@ import java.io.IOException;
  */
 public class BeepManager {
 
-    private static final float BEEP_VOLUME = 0.10f;
+    private static final float BEEP_VOLUME = 1.0f;
 
     public static void playBeep(Context context, int rawId) {
         playBeep(context, rawId, BEEP_VOLUME, BEEP_VOLUME);
@@ -24,13 +24,13 @@ public class BeepManager {
             return;
         }
         if (context instanceof Activity) {
-            ((Activity) context).setVolumeControlStream(AudioManager.STREAM_MUSIC);
+            ((Activity) context).setVolumeControlStream(AudioManager.STREAM_SYSTEM);
         }
         MediaPlayer mediaPlayer = new MediaPlayer();
         try {
             AssetFileDescriptor file = context.getResources().openRawResourceFd(rawId);
             mediaPlayer.setDataSource(file.getFileDescriptor(), file.getStartOffset(), file.getLength());
-            mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
+            mediaPlayer.setAudioStreamType(AudioManager.STREAM_SYSTEM);
             mediaPlayer.setLooping(false);
             mediaPlayer.setVolume(leftVolume, rightVolume);
             mediaPlayer.prepare();

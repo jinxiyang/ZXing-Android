@@ -1,1 +1,1 @@
-include ':app', ':zxing', ':demo', ':zxing_old'
+include ':app', ':zxing', ':demo', ':zxing_old', ':zxing_new'
