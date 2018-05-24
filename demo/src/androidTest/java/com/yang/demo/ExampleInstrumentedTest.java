@@ -1,4 +1,4 @@
-package com.google.zxing.demo;
+package com.yang.demo;
 
 import android.content.Context;
 import android.support.test.InstrumentationRegistry;
@@ -21,6 +21,6 @@ public class ExampleInstrumentedTest {
         // Context of the app under test.
         Context appContext = InstrumentationRegistry.getTargetContext();
 
-        assertEquals("com.google.zxing.demo", appContext.getPackageName());
+        assertEquals("com.yang.demo", appContext.getPackageName());
     }
 }

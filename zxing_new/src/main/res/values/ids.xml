@@ -5,4 +5,5 @@
     <item name="zxing_quit" type="id"/>
     <item name="zxing_decode_succeeded" type="id"/>
     <item name="zxing_decode_failed" type="id"/>
+    <item name="zxing_restart_preview" type="id"/>
 </resources>

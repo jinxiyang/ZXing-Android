@@ -17,7 +17,6 @@
 package com.google.zxing;
 
 import android.graphics.Bitmap;
-import android.graphics.Rect;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -34,7 +33,7 @@ final class DecodeHandler extends Handler {
     private static final String TAG = DecodeHandler.class.getSimpleName();
 
     private CaptureHandler captureHandler;
-    private final MultiFormatReader multiFormatReader;
+    private MultiFormatReader multiFormatReader;
     private boolean running = true;
 
     DecodeHandler(CaptureHandler captureHandler, Map<DecodeHintType, Object> hints) {
@@ -49,7 +48,6 @@ final class DecodeHandler extends Handler {
             return;
         }
         if (message.what == R.id.zxing_decode) {
-            message.
             decode((byte[]) message.obj, message.arg1, message.arg2);
         } else if (message.what == R.id.zxing_quit) {
             running = false;
@@ -122,12 +120,13 @@ final class DecodeHandler extends Handler {
      * @return A PlanarYUVLuminanceSource instance.
      */
     public PlanarYUVLuminanceSource buildLuminanceSource(byte[] data, int width, int height) {
-        Rect rect = getFramingRectInPreview();
-        if (rect == null) {
-            return null;
-        }
+//        Rect rect = getFramingRectInPreview();
+//        if (rect == null) {
+//            return null;
+//        }
         // Go ahead and assume it's YUV rather than die.
-        return new PlanarYUVLuminanceSource(data, width, height, rect.left, rect.top, rect.width(), rect.height(), false);
+        return new PlanarYUVLuminanceSource(data, width, height, 0, 0, width, height, false);
+//        return new PlanarYUVLuminanceSource(data, width, height, rect.left, rect.top, rect.width(), rect.height(), false);
     }
 
 }

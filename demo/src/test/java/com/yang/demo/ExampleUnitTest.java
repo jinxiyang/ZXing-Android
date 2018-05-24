@@ -1,4 +1,4 @@
-package com.google.zxing.demo;
+package com.yang.demo;
 
 import org.junit.Test;
 

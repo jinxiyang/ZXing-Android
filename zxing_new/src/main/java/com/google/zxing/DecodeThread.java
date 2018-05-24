@@ -18,7 +18,6 @@ package com.google.zxing;
 
 import android.os.Handler;
 import android.os.Looper;
-import android.util.Log;
 
 import java.util.Collection;
 import java.util.EnumMap;
@@ -33,60 +32,62 @@ import java.util.concurrent.CountDownLatch;
  */
 final class DecodeThread extends Thread {
 
-  public static final String BARCODE_BITMAP = "barcode_bitmap";
-  public static final String BARCODE_SCALED_FACTOR = "barcode_scaled_factor";
+    public static final String BARCODE_BITMAP = "barcode_bitmap";
+    public static final String BARCODE_SCALED_FACTOR = "barcode_scaled_factor";
 
-  private final Map<DecodeHintType,Object> hints;
-  private Handler handler;
-  private final CountDownLatch handlerInitLatch;
+    private final Map<DecodeHintType, Object> hints;
+    private final CountDownLatch handlerInitLatch;
+    private Handler handler;
+    private CaptureHandler captureHandler;
 
-  DecodeThread(IActivityProxy activity,
-               Collection<BarcodeFormat> decodeFormats,
-               Map<DecodeHintType,?> baseHints,
-               String characterSet,
-               ResultPointCallback resultPointCallback) {
+    DecodeThread(CaptureHandler captureHandler, QROptions qrOptions) {
+        this.captureHandler = captureHandler;
+        handlerInitLatch = new CountDownLatch(1);
+        hints = new EnumMap<>(DecodeHintType.class);
 
-    handlerInitLatch = new CountDownLatch(1);
+        Map<DecodeHintType, ?> baseHints = qrOptions.baseHints;
+        Collection<BarcodeFormat> decodeFormats = qrOptions.decodeFormats;
+        String characterSet = qrOptions.characterSet;
+        ResultPointCallback resultPointCallback = qrOptions.resultPointCallback;
 
-    hints = new EnumMap<>(DecodeHintType.class);
-    if (baseHints != null) {
-      hints.putAll(baseHints);
+        if (baseHints != null) {
+            hints.putAll(baseHints);
+        }
+
+        // The prefs can't change while the thread is running, so pick them up once here.
+        if (decodeFormats == null || decodeFormats.isEmpty()) {
+            decodeFormats = EnumSet.noneOf(BarcodeFormat.class);
+            decodeFormats.addAll(DecodeFormatManager.PRODUCT_FORMATS);
+            decodeFormats.addAll(DecodeFormatManager.INDUSTRIAL_FORMATS);
+            decodeFormats.addAll(DecodeFormatManager.QR_CODE_FORMATS);
+            decodeFormats.addAll(DecodeFormatManager.DATA_MATRIX_FORMATS);
+            decodeFormats.addAll(DecodeFormatManager.AZTEC_FORMATS);
+            decodeFormats.addAll(DecodeFormatManager.PDF417_FORMATS);
+        }
+        hints.put(DecodeHintType.POSSIBLE_FORMATS, decodeFormats);
+
+
+        if (characterSet != null) {
+            hints.put(DecodeHintType.CHARACTER_SET, characterSet);
+        }
+        hints.put(DecodeHintType.NEED_RESULT_POINT_CALLBACK, resultPointCallback);
     }
 
-    // The prefs can't change while the thread is running, so pick them up once here.
-    if (decodeFormats == null || decodeFormats.isEmpty()) {
-      decodeFormats = EnumSet.noneOf(BarcodeFormat.class);
-        decodeFormats.addAll(DecodeFormatManager.PRODUCT_FORMATS);
-        decodeFormats.addAll(DecodeFormatManager.INDUSTRIAL_FORMATS);
-        decodeFormats.addAll(DecodeFormatManager.QR_CODE_FORMATS);
-        decodeFormats.addAll(DecodeFormatManager.DATA_MATRIX_FORMATS);
-        decodeFormats.addAll(DecodeFormatManager.AZTEC_FORMATS);
-        decodeFormats.addAll(DecodeFormatManager.PDF417_FORMATS);
+    Handler getHandler() {
+        try {
+            handlerInitLatch.await();
+        } catch (InterruptedException ie) {
+            // continue?
+        }
+        return handler;
     }
-    hints.put(DecodeHintType.POSSIBLE_FORMATS, decodeFormats);
 
-    if (characterSet != null) {
-      hints.put(DecodeHintType.CHARACTER_SET, characterSet);
+    @Override
+    public void run() {
+        Looper.prepare();
+        handler = new DecodeHandler(captureHandler, hints);
+        handlerInitLatch.countDown();
+        Looper.loop();
     }
-    hints.put(DecodeHintType.NEED_RESULT_POINT_CALLBACK, resultPointCallback);
-    Log.i("DecodeThread", "Hints: " + hints);
-  }
-
-  Handler getHandler() {
-    try {
-      handlerInitLatch.await();
-    } catch (InterruptedException ie) {
-      // continue?
-    }
-    return handler;
-  }
-
-  @Override
-  public void run() {
-    Looper.prepare();
-    handler = new DecodeHandler(hints);
-    handlerInitLatch.countDown();
-    Looper.loop();
-  }
 
 }
