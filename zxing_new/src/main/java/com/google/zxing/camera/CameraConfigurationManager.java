@@ -154,8 +154,6 @@ final class CameraConfigurationManager {
             Log.w(TAG, "In camera config safe mode -- most settings will not be honored");
         }
 
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-
         initializeTorch(parameters, safeMode);
 
         CameraConfigurationUtils.setFocus(
