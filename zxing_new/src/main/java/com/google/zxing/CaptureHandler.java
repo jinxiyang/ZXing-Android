@@ -18,11 +18,15 @@ package com.google.zxing;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Rect;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 
 import com.google.zxing.camera.CameraManager;
+
+import java.util.Collection;
+import java.util.Map;
 
 /**
  * This class handles all the messaging which comprises the state machine for capture.
@@ -33,8 +37,27 @@ public final class CaptureHandler extends Handler {
 
     private State state;
     private CameraManager cameraManager;
-    private QROptions qrOptions;
     private DecodeThread decodeThread;
+    private ResultCallback resultCallback;
+
+    public CaptureHandler(CameraManager cameraManager,
+                          Rect framingRectInPreview,
+                          ResultCallback resultCallback,
+                          Map<DecodeHintType, ?> baseHints,
+                          Collection<BarcodeFormat> decodeFormats,
+                          String characterSet,
+                          ResultPointCallback resultPointCallback) {
+        this.cameraManager = cameraManager;
+        this.resultCallback = resultCallback;
+        decodeThread = new DecodeThread(this,
+                framingRectInPreview,
+                baseHints,
+                decodeFormats,
+                characterSet,
+                resultPointCallback);
+        decodeThread.start();
+        state = State.SUCCESS;
+    }
 
     private enum State {
         PREVIEW,
@@ -42,13 +65,6 @@ public final class CaptureHandler extends Handler {
         DONE
     }
 
-    CaptureHandler(CameraManager cameraManager, QROptions qrOptions) {
-        this.cameraManager = cameraManager;
-        this.qrOptions = qrOptions;
-        decodeThread = new DecodeThread(this, qrOptions);
-        decodeThread.start();
-        state = State.SUCCESS;
-    }
 
     @Override
     public void handleMessage(Message message) {
@@ -77,8 +93,8 @@ public final class CaptureHandler extends Handler {
     }
 
     private void handleDecode(Result obj, Bitmap barcode, float scaleFactor) {
-        if (qrOptions.resultCallback != null){
-            qrOptions.resultCallback.onHandleResult(obj, barcode, scaleFactor);
+        if (resultCallback != null){
+            resultCallback.onHandleResult(obj, barcode, scaleFactor);
         }
     }
 

@@ -125,6 +125,11 @@ public final class CameraManager {
         return camera != null;
     }
 
+
+    public synchronized boolean isPreviewing() {
+        return camera != null && previewing;
+    }
+
     /**
      * Closes the camera driver if still in use.
      */

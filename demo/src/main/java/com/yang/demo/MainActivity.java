@@ -39,6 +39,10 @@ public class MainActivity extends AppCompatActivity {
         btnOpenPreview.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                Point screenSize = new Point();
+                getWindowManager().getDefaultDisplay().getSize(screenSize);
+                Log.i(TAG, "screenSize: " + screenSize.toString());
+
                 if (previewing){
                     stopPreview();
                 }else {
@@ -75,7 +79,7 @@ public class MainActivity extends AppCompatActivity {
         while (index < numberOfCameras) {
             Camera.CameraInfo cameraInfo = new Camera.CameraInfo();
             Camera.getCameraInfo(index, cameraInfo);
-            if (cameraInfo.facing == Camera.CameraInfo.CAMERA_FACING_BACK) {
+            if (cameraInfo.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
                 backCamera = cameraInfo;
                 break;
             }
@@ -94,15 +98,17 @@ public class MainActivity extends AppCompatActivity {
                     for (Camera.Size size : supportedPreviewSizes) {
                         Log.i(TAG, "Camera.Size: [" + size.width + "," + size.height + "]");
                     }
-                    Camera.Size size = supportedPreviewSizes.get(0);
+//                    Camera.Size size = supportedPreviewSizes.get(0);
 //                    parameters.setPreviewSize(size.width, size.height);
                 }
 
-                int width = svPreview.getWidth();
-                int height = svPreview.getHeight();
-                Log.i(TAG, "svPreview: [" + width + "," + height + "]");
+//                int width = svPreview.getWidth();
+//                int height = svPreview.getHeight();
+//                Log.i(TAG, "svPreview: [" + width + "," + height + "]");
 
-                Point bestPreviewSize = getBestPreviewSize(parameters, new Point(width, height));
+                Point screenSize = new Point();
+                getWindowManager().getDefaultDisplay().getSize(screenSize);
+                Point bestPreviewSize = getBestPreviewSize(parameters, screenSize);
                 parameters.setPreviewSize(bestPreviewSize.x, bestPreviewSize.y);
                 camera.setParameters(parameters);
                 camera.setDisplayOrientation(getCameraDisplayOrientation(this, index));
@@ -188,7 +194,14 @@ public class MainActivity extends AppCompatActivity {
             return new Point(defaultSize.width, defaultSize.height);
         }
 
-        final float screenAspectRatio = screenResolution.x / (float)screenResolution.y;
+        Camera.Size defaultSize = rawSupportedPreviewSizes.get(0);
+
+        final float screenAspectRatio;
+        if (screenResolution.x < screenResolution.y){
+            screenAspectRatio = screenResolution.y / (float)screenResolution.x;
+        }else {
+            screenAspectRatio = screenResolution.x / (float)screenResolution.y;
+        }
 
         List<Camera.Size> supportedPreviewSizes = new ArrayList<>(rawSupportedPreviewSizes);
         Iterator<Camera.Size> iterator = supportedPreviewSizes.iterator();
@@ -247,10 +260,6 @@ public class MainActivity extends AppCompatActivity {
             return new Point(size.width, size.height);
         }
 
-        Camera.Size defaultSize = parameters.getPreviewSize();
-        if (defaultSize == null) {
-            throw new IllegalStateException("Parameters contained no preview size!");
-        }
         return new Point(defaultSize.width, defaultSize.height);
     }
 

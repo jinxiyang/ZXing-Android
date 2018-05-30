@@ -16,6 +16,7 @@
 
 package com.google.zxing;
 
+import android.graphics.Rect;
 import android.os.Handler;
 import android.os.Looper;
 
@@ -39,16 +40,18 @@ final class DecodeThread extends Thread {
     private final CountDownLatch handlerInitLatch;
     private Handler handler;
     private CaptureHandler captureHandler;
+    private Rect framingRectInPreview;
 
-    DecodeThread(CaptureHandler captureHandler, QROptions qrOptions) {
+    public DecodeThread(CaptureHandler captureHandler,
+                        Rect framingRectInPreview,
+                        Map<DecodeHintType, ?> baseHints,
+                        Collection<BarcodeFormat> decodeFormats,
+                        String characterSet,
+                        ResultPointCallback resultPointCallback) {
         this.captureHandler = captureHandler;
+        this.framingRectInPreview = framingRectInPreview;
         handlerInitLatch = new CountDownLatch(1);
         hints = new EnumMap<>(DecodeHintType.class);
-
-        Map<DecodeHintType, ?> baseHints = qrOptions.baseHints;
-        Collection<BarcodeFormat> decodeFormats = qrOptions.decodeFormats;
-        String characterSet = qrOptions.characterSet;
-        ResultPointCallback resultPointCallback = qrOptions.resultPointCallback;
 
         if (baseHints != null) {
             hints.putAll(baseHints);
@@ -85,7 +88,7 @@ final class DecodeThread extends Thread {
     @Override
     public void run() {
         Looper.prepare();
-        handler = new DecodeHandler(captureHandler, hints);
+        handler = new DecodeHandler(captureHandler, hints, framingRectInPreview);
         handlerInitLatch.countDown();
         Looper.loop();
     }
