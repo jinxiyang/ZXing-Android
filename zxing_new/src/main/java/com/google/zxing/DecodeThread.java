@@ -20,9 +20,6 @@ import android.graphics.Rect;
 import android.os.Handler;
 import android.os.Looper;
 
-import java.util.Collection;
-import java.util.EnumMap;
-import java.util.EnumSet;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
@@ -42,38 +39,11 @@ final class DecodeThread extends Thread {
     private CaptureHandler captureHandler;
     private Rect framingRectInPreview;
 
-    public DecodeThread(CaptureHandler captureHandler,
-                        Rect framingRectInPreview,
-                        Map<DecodeHintType, ?> baseHints,
-                        Collection<BarcodeFormat> decodeFormats,
-                        String characterSet,
-                        ResultPointCallback resultPointCallback) {
+    public DecodeThread(CaptureHandler captureHandler, Rect framingRectInPreview, Map<DecodeHintType, Object> hints) {
         this.captureHandler = captureHandler;
         this.framingRectInPreview = framingRectInPreview;
         handlerInitLatch = new CountDownLatch(1);
-        hints = new EnumMap<>(DecodeHintType.class);
-
-        if (baseHints != null) {
-            hints.putAll(baseHints);
-        }
-
-        // The prefs can't change while the thread is running, so pick them up once here.
-        if (decodeFormats == null || decodeFormats.isEmpty()) {
-            decodeFormats = EnumSet.noneOf(BarcodeFormat.class);
-            decodeFormats.addAll(DecodeFormatManager.PRODUCT_FORMATS);
-            decodeFormats.addAll(DecodeFormatManager.INDUSTRIAL_FORMATS);
-            decodeFormats.addAll(DecodeFormatManager.QR_CODE_FORMATS);
-            decodeFormats.addAll(DecodeFormatManager.DATA_MATRIX_FORMATS);
-            decodeFormats.addAll(DecodeFormatManager.AZTEC_FORMATS);
-            decodeFormats.addAll(DecodeFormatManager.PDF417_FORMATS);
-        }
-        hints.put(DecodeHintType.POSSIBLE_FORMATS, decodeFormats);
-
-
-        if (characterSet != null) {
-            hints.put(DecodeHintType.CHARACTER_SET, characterSet);
-        }
-        hints.put(DecodeHintType.NEED_RESULT_POINT_CALLBACK, resultPointCallback);
+        this.hints = hints;
     }
 
     Handler getHandler() {

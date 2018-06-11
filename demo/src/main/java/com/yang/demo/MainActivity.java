@@ -1,6 +1,7 @@
 package com.yang.demo;
 
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Point;
 import android.hardware.Camera;
 import android.os.Bundle;
@@ -12,6 +13,8 @@ import android.view.SurfaceView;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
+
+import com.google.zxing.QRManager;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -39,35 +42,37 @@ public class MainActivity extends AppCompatActivity {
         btnOpenPreview.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Point screenSize = new Point();
-                getWindowManager().getDefaultDisplay().getSize(screenSize);
-                Log.i(TAG, "screenSize: " + screenSize.toString());
+//                Point screenSize = new Point();
+//                getWindowManager().getDefaultDisplay().getSize(screenSize);
+//                Log.i(TAG, "screenSize: " + screenSize.toString());
+//
+//                if (previewing){
+//                    stopPreview();
+//                }else {
+//                    startPreview();
+//                }
+                startActivity(new Intent(MainActivity.this, QRActivity.class));
 
-                if (previewing){
-                    stopPreview();
-                }else {
-                    startPreview();
-                }
             }
         });
 
-        svPreview = (SurfaceView) findViewById(R.id.sv_preview);
-        svPreview.getHolder().addCallback(new SurfaceHolder.Callback() {
-            @Override
-            public void surfaceCreated(SurfaceHolder holder) {
-                hasSurface = true;
-            }
-
-            @Override
-            public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-
-            }
-
-            @Override
-            public void surfaceDestroyed(SurfaceHolder holder) {
-                hasSurface = false;
-            }
-        });
+//        svPreview = (SurfaceView) findViewById(R.id.sv_preview);
+//        svPreview.getHolder().addCallback(new SurfaceHolder.Callback() {
+//            @Override
+//            public void surfaceCreated(SurfaceHolder holder) {
+//                hasSurface = true;
+//            }
+//
+//            @Override
+//            public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+//
+//            }
+//
+//            @Override
+//            public void surfaceDestroyed(SurfaceHolder holder) {
+//                hasSurface = false;
+//            }
+//        });
     }
 
     private void startPreview() {
@@ -79,7 +84,7 @@ public class MainActivity extends AppCompatActivity {
         while (index < numberOfCameras) {
             Camera.CameraInfo cameraInfo = new Camera.CameraInfo();
             Camera.getCameraInfo(index, cameraInfo);
-            if (cameraInfo.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
+            if (cameraInfo.facing == Camera.CameraInfo.CAMERA_FACING_BACK) {
                 backCamera = cameraInfo;
                 break;
             }

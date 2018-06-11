@@ -25,9 +25,6 @@ import android.os.Message;
 
 import com.google.zxing.camera.CameraManager;
 
-import java.util.Collection;
-import java.util.Map;
-
 /**
  * This class handles all the messaging which comprises the state machine for capture.
  *
@@ -35,26 +32,18 @@ import java.util.Map;
  */
 public final class CaptureHandler extends Handler {
 
+    private QRManager qrManager;
     private State state;
     private CameraManager cameraManager;
     private DecodeThread decodeThread;
-    private ResultCallback resultCallback;
 
-    public CaptureHandler(CameraManager cameraManager,
-                          Rect framingRectInPreview,
-                          ResultCallback resultCallback,
-                          Map<DecodeHintType, ?> baseHints,
-                          Collection<BarcodeFormat> decodeFormats,
-                          String characterSet,
-                          ResultPointCallback resultPointCallback) {
+
+    public CaptureHandler(CameraManager cameraManager, Rect framingRectInPreview) {
         this.cameraManager = cameraManager;
-        this.resultCallback = resultCallback;
+        qrManager = QRManager.getInstance();
         decodeThread = new DecodeThread(this,
                 framingRectInPreview,
-                baseHints,
-                decodeFormats,
-                characterSet,
-                resultPointCallback);
+                qrManager.getHint());
         decodeThread.start();
         state = State.SUCCESS;
     }
@@ -93,14 +82,14 @@ public final class CaptureHandler extends Handler {
     }
 
     private void handleDecode(Result obj, Bitmap barcode, float scaleFactor) {
+        ResultCallback resultCallback = qrManager.getResultCallback();
         if (resultCallback != null){
-            resultCallback.onHandleResult(obj, barcode, scaleFactor);
+            resultCallback.onResult(obj, barcode, scaleFactor);
         }
     }
 
     public void quitSynchronously() {
         state = State.DONE;
-        cameraManager.stopPreview();
         Message quit = Message.obtain(decodeThread.getHandler(), R.id.zxing_quit);
         quit.sendToTarget();
         try {

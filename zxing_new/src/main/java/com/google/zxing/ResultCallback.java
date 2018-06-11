@@ -13,5 +13,5 @@ public interface ResultCallback {
      * @param barcode
      * @param scaleFactor
      */
-    void onHandleResult(Result rawResult, Bitmap barcode, float scaleFactor);
+    void onResult(Result rawResult, Bitmap barcode, float scaleFactor);
 }

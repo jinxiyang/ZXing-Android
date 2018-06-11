@@ -8,6 +8,8 @@ import com.google.zxing.camera.CameraManager;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.Map;
 
 /**
@@ -15,92 +17,85 @@ import java.util.Map;
  * Time: 2018/5/24  16:17
  */
 public class QRManager {
-    private Context context;
+    private static QRManager instance;
+
     private CameraManager cameraManager;
-    private SurfaceHolder surfaceHolder;
     private CaptureHandler captureHandler;
     private ResultCallback resultCallback;
-    private ResultPointCallback resultPointCallback;
     private QRView qrView;
 
-    private Map<DecodeHintType, ?> baseHints;
-    private Collection<BarcodeFormat> decodeFormats;
-    private String characterSet;
+    private Map<DecodeHintType, Object> hints;
 
-    private boolean hasSurface = false;
-    private boolean scanning = false;
+    private QRManager() {
+    }
 
-    private SurfaceHolder.Callback shCallback = new SurfaceHolder.Callback() {
-        @Override
-        public void surfaceCreated(SurfaceHolder holder) {
-            hasSurface = true;
-            if (scanning){
-                startScan();
-            }
+    public synchronized static QRManager getInstance(){
+        if (instance == null){
+            instance = new QRManager();
         }
-
-        @Override
-        public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-
-        }
-
-        @Override
-        public void surfaceDestroyed(SurfaceHolder holder) {
-            hasSurface = false;
-        }
-    };
-
-    public void openCamera(){
-        if (cameraManager != null){
-            return;
-        }
-        cameraManager = new CameraManager(context);
-        if (hasSurface){
-            try {
-                cameraManager.openDriver(surfaceHolder);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            cameraManager.startPreview();
-        }else {
-            surfaceHolder.addCallback(shCallback);
-        }
+        return instance;
     }
 
 
-    public void startScan(){
-        openCamera();
-        if (scanning || !hasSurface){
-            return;
-        }
-        captureHandler = new CaptureHandler(cameraManager,
-                qrView.getScanCodeRect(),
-                resultCallback,
-                baseHints,
-                decodeFormats,
-                characterSet,
-                resultPointCallback);
+    public void openCamera(Context context, SurfaceHolder surfaceHolder) throws IOException {
+        cameraManager = new CameraManager(context);
+        cameraManager.openDriver(surfaceHolder);
         cameraManager.startPreview();
+    }
+
+    public void startScan(){
+        captureHandler = new CaptureHandler(cameraManager, qrView.getScanCodeRect());
         Message.obtain(captureHandler, R.id.zxing_restart_preview).sendToTarget();
-        if (qrView != null) qrView.startAnim();
-        scanning = true;
+        qrView.startAnim();
     }
 
 
     public void stopScan(){
-        if (!scanning){
-            return;
-        }
         captureHandler.quitSynchronously();
         captureHandler = null;
-        if (qrView != null) qrView.stopAnim();
-        scanning = false;
+        qrView.stopAnim();
     }
 
     public void closeCamera(){
-        stopScan();
         cameraManager.stopPreview();
         cameraManager.closeDriver();
         cameraManager = null;
+    }
+
+    public void flashlight(boolean open){
+        cameraManager.setTorch(open);
+    }
+
+    public void setResultCallback(ResultCallback resultCallback) {
+        this.resultCallback = resultCallback;
+    }
+
+    public ResultCallback getResultCallback() {
+        return resultCallback;
+    }
+
+    public void setQrView(QRView qrView) {
+        this.qrView = qrView;
+    }
+
+    public Map<DecodeHintType, Object> getHint(){
+        if (hints == null || hints.isEmpty()){
+            hints = new EnumMap<>(DecodeHintType.class);
+            Collection<BarcodeFormat> decodeFormats = EnumSet.noneOf(BarcodeFormat.class);
+            decodeFormats.addAll(DecodeFormatManager.PRODUCT_FORMATS);
+            decodeFormats.addAll(DecodeFormatManager.INDUSTRIAL_FORMATS);
+            decodeFormats.addAll(DecodeFormatManager.QR_CODE_FORMATS);
+            decodeFormats.addAll(DecodeFormatManager.DATA_MATRIX_FORMATS);
+            decodeFormats.addAll(DecodeFormatManager.AZTEC_FORMATS);
+            decodeFormats.addAll(DecodeFormatManager.PDF417_FORMATS);
+            hints.put(DecodeHintType.POSSIBLE_FORMATS, decodeFormats);
+//        hints.put(DecodeHintType.CHARACTER_SET, characterSet);
+//        hints.put(DecodeHintType.NEED_RESULT_POINT_CALLBACK, resultPointCallback);
+        }
+        return hints;
+    }
+
+    public void setHints(Map<DecodeHintType, Object> hints) {
+        this.hints = hints;
     }
 }

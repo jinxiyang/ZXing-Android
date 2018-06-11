@@ -9,6 +9,5 @@ import android.graphics.Rect;
 public interface QRView {
     void startAnim();
     void stopAnim();
-    void addPossibleResultPoint(ResultPoint point);
     Rect getScanCodeRect();
 }
