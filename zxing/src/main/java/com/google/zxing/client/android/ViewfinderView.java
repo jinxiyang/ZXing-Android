@@ -82,8 +82,24 @@ public final class ViewfinderView extends View {
     if (cameraManager == null) {
       return; // not ready yet, early draw before done configuring
     }
+    //获取扫码框的尺寸
     Rect frame = cameraManager.getFramingRect();
-    Rect previewFrame = cameraManager.getFramingRectInPreview();    
+
+
+
+    //屏幕上的扫码框，对应预览图像中的框尺寸，因为预览界面和屏幕界面不是相等的，而是有扭曲因子的
+    //实际截图图片解码时，用的是预览界面中框所包含的图片，而不是屏幕上扫码框对应的尺寸，避免引起以下问题：
+//java.lang.IllegalArgumentException: Crop rectangle does not fit within image data.
+//    at com.google.zxing.PlanarYUVLuminanceSource.<init>(PlanarYUVLuminanceSource.java:50)
+//    at com.google.zxing.DecodeHandler.buildLuminanceSource(DecodeHandler.java:127)
+//    at com.google.zxing.DecodeHandler.decode(DecodeHandler.java:72)
+//    at com.google.zxing.DecodeHandler.handleMessage(DecodeHandler.java:54)
+//    at android.os.Handler.dispatchMessage(Handler.java:109)
+//    at android.os.Looper.loop(Looper.java:166)
+//    at com.google.zxing.DecodeThread.run(DecodeThread.java:63)
+    Rect previewFrame = cameraManager.getFramingRectInPreview();
+
+
     if (frame == null || previewFrame == null) {
       return;
     }

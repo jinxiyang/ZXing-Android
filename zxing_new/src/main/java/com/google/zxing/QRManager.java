@@ -98,4 +98,8 @@ public class QRManager {
     public void setHints(Map<DecodeHintType, Object> hints) {
         this.hints = hints;
     }
+
+    public CameraManager getCameraManager() {
+        return cameraManager;
+    }
 }

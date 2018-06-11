@@ -1,10 +1,8 @@
 package com.yang.demo;
 
 import android.graphics.Bitmap;
-import android.graphics.Rect;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
-import android.text.TextUtils;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
@@ -12,7 +10,7 @@ import android.widget.Button;
 import android.widget.Toast;
 
 import com.google.zxing.QRManager;
-import com.google.zxing.QRView;
+import com.google.zxing.Result;
 import com.google.zxing.ResultCallback;
 
 import java.io.IOException;
@@ -22,7 +20,8 @@ public class QRActivity extends AppCompatActivity {
     private Button btnAction;
     private SurfaceView surfaceView;
     private QRManager qrManager;
-    private QRView qrView;
+    private QRViewImpl qrView;
+    private ResultCallback resultCallback;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -32,6 +31,7 @@ public class QRActivity extends AppCompatActivity {
         surfaceView = (SurfaceView) findViewById(R.id.surface);
 
         btnAction = (Button) findViewById(R.id.btn_action);
+        qrView = (QRViewImpl) findViewById(R.id.qr_view);
         btnAction.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -58,25 +58,11 @@ public class QRActivity extends AppCompatActivity {
             }
         });
 
-        qrView = new QRView() {
-            Rect rect;
+        resultCallback = new ResultCallback() {
 
             @Override
-            public void startAnim() {
-                Toast.makeText(QRActivity.this, "startAnim", Toast.LENGTH_SHORT).show();
-            }
-
-            @Override
-            public void stopAnim() {
-                Toast.makeText(QRActivity.this, "stopAnim", Toast.LENGTH_SHORT).show();
-            }
-
-            @Override
-            public Rect getScanCodeRect() {
-                if (rect == null){
-                    rect = new Rect(0, 0, 300, 400);
-                }
-                return rect;
+            public void onResult(Result rawResult, Bitmap barcode, float scaleFactor) {
+                Toast.makeText(QRActivity.this, rawResult.getText(), Toast.LENGTH_SHORT).show();
             }
         };
     }
@@ -89,6 +75,7 @@ public class QRActivity extends AppCompatActivity {
         }else if ("开启扫描".equals(text)){
             text = "开启闪光灯";
             qrManager.setQrView(qrView);
+            qrManager.setResultCallback(resultCallback);
             qrManager.startScan();
         }else if ("开启闪光灯".equals(text)){
             text = "关闭闪光灯";
