@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.google.zxing;
+package com.google.zxing.decode;
 
 import android.graphics.Bitmap;
 import android.graphics.Rect;
@@ -24,25 +24,38 @@ import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 
+import com.google.zxing.BinaryBitmap;
+import com.google.zxing.DecodeHintType;
+import com.google.zxing.MultiFormatReader;
+import com.google.zxing.PlanarYUVLuminanceSource;
+import com.google.zxing.R;
+import com.google.zxing.ReaderException;
+import com.google.zxing.Result;
 import com.google.zxing.common.HybridBinarizer;
 
 import java.io.ByteArrayOutputStream;
 import java.util.Map;
 
-final class DecodeHandler extends Handler {
+public final class DecodeHandler extends Handler {
 
     private static final String TAG = DecodeHandler.class.getSimpleName();
 
     private CaptureHandler captureHandler;
     private MultiFormatReader multiFormatReader;
     private Rect framingRectInPreview;
+    private boolean resultContainBitmap;
+
     private boolean running = true;
 
-    DecodeHandler(CaptureHandler captureHandler, Map<DecodeHintType, Object> hints, Rect framingRectInPreview) {
+    DecodeHandler(CaptureHandler captureHandler,
+                  Map<DecodeHintType, Object> hints,
+                  Rect framingRectInPreview,
+                  boolean resultContainBitmap) {
         this.captureHandler = captureHandler;
         multiFormatReader = new MultiFormatReader();
         multiFormatReader.setHints(hints);
         this.framingRectInPreview = framingRectInPreview;
+        this.resultContainBitmap = resultContainBitmap;
     }
 
     @Override
@@ -68,6 +81,22 @@ final class DecodeHandler extends Handler {
      */
     private void decode(byte[] data, int width, int height) {
         long start = System.currentTimeMillis();
+
+        //一维码横向只能横向解析,预览方向和手机方向不一致时，需旋转图片解析
+        boolean isCameraPortrait = width < height;
+        boolean isScreenPortrait = framingRectInPreview.width() < framingRectInPreview.height();
+        if (isCameraPortrait != isScreenPortrait) {
+            byte[] rotatedData = new byte[data.length];
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++)
+                    rotatedData[x * height + height - y - 1] = data[x + y * width];
+            }
+            int tmp = width;
+            width = height;
+            height = tmp;
+            data = rotatedData;
+        }
+
         Result rawResult = null;
         PlanarYUVLuminanceSource source = buildLuminanceSource(data, width, height);
         if (source != null) {
@@ -81,27 +110,27 @@ final class DecodeHandler extends Handler {
             }
         }
 
-        Handler handler = captureHandler;
-        if (rawResult != null) {
-            // Don't log the barcode contents for security.
-            long end = System.currentTimeMillis();
-            Log.d(TAG, "Found barcode in " + (end - start) + " ms");
-            if (handler != null) {
-                Message message = Message.obtain(handler, R.id.zxing_decode_succeeded, rawResult);
-                Bundle bundle = new Bundle();
-                bundleThumbnail(source, bundle);
-                message.setData(bundle);
+
+        if (captureHandler != null){
+            if (rawResult != null){
+                Message message = Message.obtain(captureHandler, R.id.zxing_decode_succeeded, rawResult);
+                if (resultContainBitmap){
+                    Bundle bundle = new Bundle();
+                    bundleThumbnail(source, bundle);
+                    message.setData(bundle);
+                }
                 message.sendToTarget();
-            }
-        } else {
-            if (handler != null) {
-                Message message = Message.obtain(handler, R.id.zxing_decode_failed);
+            }else {
+                Message message = Message.obtain(captureHandler, R.id.zxing_decode_failed);
                 message.sendToTarget();
             }
         }
+        // Don't log the barcode contents for security.
+        long end = System.currentTimeMillis();
+        Log.d(TAG, "Found barcode in " + (end - start) + " ms");
     }
 
-    private static void bundleThumbnail(PlanarYUVLuminanceSource source, Bundle bundle) {
+    private void bundleThumbnail(PlanarYUVLuminanceSource source, Bundle bundle) {
         int[] pixels = source.renderThumbnail();
         int width = source.getThumbnailWidth();
         int height = source.getThumbnailHeight();
@@ -124,7 +153,13 @@ final class DecodeHandler extends Handler {
      */
     public PlanarYUVLuminanceSource buildLuminanceSource(byte[] data, int width, int height) {
         // Go ahead and assume it's YUV rather than die.
-        return new PlanarYUVLuminanceSource(data, width, height, framingRectInPreview.left, framingRectInPreview.top, framingRectInPreview.width(), framingRectInPreview.height(), false);
+        PlanarYUVLuminanceSource source = null;
+        try {
+            source = new PlanarYUVLuminanceSource(data, width, height, framingRectInPreview.left, framingRectInPreview.top, framingRectInPreview.width(), framingRectInPreview.height(), false);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return source;
     }
 
 }

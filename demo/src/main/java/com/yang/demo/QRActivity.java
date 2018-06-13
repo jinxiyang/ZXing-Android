@@ -11,7 +11,8 @@ import android.widget.Toast;
 
 import com.google.zxing.QRManager;
 import com.google.zxing.Result;
-import com.google.zxing.ResultCallback;
+import com.google.zxing.decode.ResultCallback;
+import com.google.zxing.view.QRViewImpl;
 
 import java.io.IOException;
 
@@ -30,8 +31,8 @@ public class QRActivity extends AppCompatActivity {
 
         surfaceView = (SurfaceView) findViewById(R.id.surface);
 
-        btnAction = (Button) findViewById(R.id.btn_action);
         qrView = (QRViewImpl) findViewById(R.id.qr_view);
+        btnAction = (Button)findViewById(R.id.btn_action);
         btnAction.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -63,6 +64,7 @@ public class QRActivity extends AppCompatActivity {
             @Override
             public void onResult(Result rawResult, Bitmap barcode, float scaleFactor) {
                 Toast.makeText(QRActivity.this, rawResult.getText(), Toast.LENGTH_SHORT).show();
+                qrView.drawResultBitmap(barcode);
             }
         };
     }
@@ -95,7 +97,7 @@ public class QRActivity extends AppCompatActivity {
 
     private void openCamera() {
         if (hasSurface){
-            qrManager = QRManager.getInstance();
+            qrManager = new QRManager();
             try {
                 qrManager.openCamera(this, surfaceView.getHolder());
             } catch (IOException e) {

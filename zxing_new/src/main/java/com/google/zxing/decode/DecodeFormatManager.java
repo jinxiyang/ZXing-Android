@@ -14,22 +14,24 @@
  * limitations under the License.
  */
 
-package com.google.zxing;
+package com.google.zxing.decode;
+
+import com.google.zxing.BarcodeFormat;
 
 import java.util.EnumSet;
 import java.util.Set;
 
-final class DecodeFormatManager {
+public final class DecodeFormatManager {
 
-  static final Set<BarcodeFormat> PRODUCT_FORMATS;
-  static final Set<BarcodeFormat> INDUSTRIAL_FORMATS;
-  static final Set<BarcodeFormat> ONE_D_FORMATS;
-  static final Set<BarcodeFormat> QR_CODE_FORMATS = EnumSet.of(BarcodeFormat.QR_CODE);
-  static final Set<BarcodeFormat> DATA_MATRIX_FORMATS = EnumSet.of(BarcodeFormat.DATA_MATRIX);
-  static final Set<BarcodeFormat> AZTEC_FORMATS = EnumSet.of(BarcodeFormat.AZTEC);
-  static final Set<BarcodeFormat> PDF417_FORMATS = EnumSet.of(BarcodeFormat.PDF_417);
+  public static final Set<BarcodeFormat> PRODUCT_FORMATS;
+  public static final Set<BarcodeFormat> INDUSTRIAL_FORMATS;
+  public static final Set<BarcodeFormat> ONE_D_FORMATS;
+  public static final Set<BarcodeFormat> QR_CODE_FORMATS = EnumSet.of(BarcodeFormat.QR_CODE);
+  public static final Set<BarcodeFormat> DATA_MATRIX_FORMATS = EnumSet.of(BarcodeFormat.DATA_MATRIX);
+  public static final Set<BarcodeFormat> AZTEC_FORMATS = EnumSet.of(BarcodeFormat.AZTEC);
+  public static final Set<BarcodeFormat> PDF417_FORMATS = EnumSet.of(BarcodeFormat.PDF_417);
 
-  static final Set<BarcodeFormat> FORMATS_FOR_MODE;
+  public static final Set<BarcodeFormat> FORMATS_FOR_MODE;
 
   static {
     PRODUCT_FORMATS = EnumSet.of(BarcodeFormat.UPC_A,

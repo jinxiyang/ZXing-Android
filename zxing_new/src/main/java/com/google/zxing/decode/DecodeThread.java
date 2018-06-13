@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 
-package com.google.zxing;
+package com.google.zxing.decode;
 
 import android.graphics.Rect;
 import android.os.Handler;
 import android.os.Looper;
+
+import com.google.zxing.DecodeHintType;
 
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -28,7 +30,7 @@ import java.util.concurrent.CountDownLatch;
  *
  * @author dswitkin@google.com (Daniel Switkin)
  */
-final class DecodeThread extends Thread {
+public final class DecodeThread extends Thread {
 
     public static final String BARCODE_BITMAP = "barcode_bitmap";
     public static final String BARCODE_SCALED_FACTOR = "barcode_scaled_factor";
@@ -46,7 +48,7 @@ final class DecodeThread extends Thread {
         this.hints = hints;
     }
 
-    Handler getHandler() {
+    public Handler getHandler() {
         try {
             handlerInitLatch.await();
         } catch (InterruptedException ie) {
@@ -58,7 +60,7 @@ final class DecodeThread extends Thread {
     @Override
     public void run() {
         Looper.prepare();
-        handler = new DecodeHandler(captureHandler, hints, framingRectInPreview);
+        handler = new DecodeHandler(captureHandler, hints, framingRectInPreview, true);
         handlerInitLatch.countDown();
         Looper.loop();
     }

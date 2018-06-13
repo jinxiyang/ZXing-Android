@@ -22,13 +22,20 @@ import android.graphics.Rect;
 import android.hardware.Camera;
 import android.os.Handler;
 import android.util.Log;
+import android.view.Surface;
 import android.view.SurfaceHolder;
+import android.view.WindowManager;
 
-import com.google.zxing.PlanarYUVLuminanceSource;
 import com.google.zxing.camera.open.OpenCamera;
 import com.google.zxing.camera.open.OpenCameraInterface;
+import com.google.zxing.client.android.camera.CameraConfigurationUtils;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.List;
 
 /**
  * This object wraps the Camera service object and expects to be the only one talking to it. The
@@ -42,32 +49,22 @@ public final class CameraManager {
 
     private static final String TAG = CameraManager.class.getSimpleName();
 
-    private static final int MIN_FRAME_WIDTH = 240;
-    private static final int MIN_FRAME_HEIGHT = 240;
-    private static final int MAX_FRAME_WIDTH = 1200; // = 5/8 * 1920
-    private static final int MAX_FRAME_HEIGHT = 675; // = 5/8 * 1080
-
     private final Context context;
-    private final CameraConfigurationManager configManager;
     private OpenCamera camera;
     private AutoFocusManager autoFocusManager;
-    private Rect framingRect;
-    private Rect framingRectInPreview;
-    private boolean initialized;
     private boolean previewing;
-    private int requestedCameraId = OpenCameraInterface.NO_REQUESTED_CAMERA;
-    private int requestedFramingRectWidth;
-    private int requestedFramingRectHeight;
+
+    private Point screenPoint;
+    private Point previewSize;
+
     /**
      * Preview frames are delivered here, which we pass on to the registered handler. Make sure to
      * clear the handler so it will only receive one message.
      */
-    private final PreviewCallback previewCallback;
+    private PreviewCallback previewCallback;
 
     public CameraManager(Context context) {
         this.context = context;
-        this.configManager = new CameraConfigurationManager(context);
-        previewCallback = new PreviewCallback(configManager);
     }
 
     /**
@@ -79,28 +76,18 @@ public final class CameraManager {
     public synchronized void openDriver(SurfaceHolder holder) throws IOException {
         OpenCamera theCamera = camera;
         if (theCamera == null) {
-            theCamera = OpenCameraInterface.open(requestedCameraId);
+            theCamera = OpenCameraInterface.open(-1);
             if (theCamera == null) {
                 throw new IOException("Camera.open() failed to return object from driver");
             }
             camera = theCamera;
         }
 
-        if (!initialized) {
-            initialized = true;
-            configManager.initFromCameraParameters(theCamera);
-            if (requestedFramingRectWidth > 0 && requestedFramingRectHeight > 0) {
-                setManualFramingRect(requestedFramingRectWidth, requestedFramingRectHeight);
-                requestedFramingRectWidth = 0;
-                requestedFramingRectHeight = 0;
-            }
-        }
-
         Camera cameraObject = theCamera.getCamera();
         Camera.Parameters parameters = cameraObject.getParameters();
         String parametersFlattened = parameters == null ? null : parameters.flatten(); // Save these, temporarily
         try {
-            configManager.setDesiredCameraParameters(theCamera, false);
+            setDesiredCameraParameters(theCamera, false);
         } catch (RuntimeException re) {
             // Driver failed
             Log.w(TAG, "Camera rejected parameters. Setting only minimal safe-mode parameters");
@@ -111,7 +98,7 @@ public final class CameraManager {
                 parameters.unflatten(parametersFlattened);
                 try {
                     cameraObject.setParameters(parameters);
-                    configManager.setDesiredCameraParameters(theCamera, true);
+                    setDesiredCameraParameters(theCamera, true);
                 } catch (RuntimeException re2) {
                     // Well, darn. Give up
                     Log.w(TAG, "Camera rejected even safe-mode parameters! No configuration");
@@ -119,15 +106,7 @@ public final class CameraManager {
             }
         }
         cameraObject.setPreviewDisplay(holder);
-    }
-
-    public synchronized boolean isOpen() {
-        return camera != null;
-    }
-
-
-    public synchronized boolean isPreviewing() {
-        return camera != null && previewing;
+        previewCallback = new PreviewCallback(previewSize);
     }
 
     /**
@@ -137,10 +116,6 @@ public final class CameraManager {
         if (camera != null) {
             camera.getCamera().release();
             camera = null;
-            // Make sure to clear these each time we close the camera, so that any scanning rect
-            // requested by intent is forgotten.
-            framingRect = null;
-            framingRectInPreview = null;
         }
     }
 
@@ -178,18 +153,36 @@ public final class CameraManager {
      */
     public synchronized void setTorch(boolean newSetting) {
         OpenCamera theCamera = camera;
-        if (theCamera != null && newSetting != configManager.getTorchState(theCamera.getCamera())) {
+        if (theCamera != null && newSetting != getTorchState(theCamera.getCamera())) {
             boolean wasAutoFocusManager = autoFocusManager != null;
             if (wasAutoFocusManager) {
                 autoFocusManager.stop();
                 autoFocusManager = null;
             }
-            configManager.setTorch(theCamera.getCamera(), newSetting);
+            setTorch(theCamera.getCamera(), newSetting);
             if (wasAutoFocusManager) {
                 autoFocusManager = new AutoFocusManager(context, theCamera.getCamera());
                 autoFocusManager.start();
             }
         }
+    }
+
+    private boolean getTorchState(Camera camera) {
+        if (camera != null) {
+            Camera.Parameters parameters = camera.getParameters();
+            if (parameters != null) {
+                String flashMode = parameters.getFlashMode();
+                return flashMode != null && (Camera.Parameters.FLASH_MODE_ON.equals(flashMode) || Camera.Parameters.FLASH_MODE_TORCH.equals(flashMode));
+            }
+        }
+        return false;
+    }
+
+    private void setTorch(Camera camera, boolean newSetting) {
+        Camera.Parameters parameters = camera.getParameters();
+        CameraConfigurationUtils.setTorch(parameters, newSetting);
+//        CameraConfigurationUtils.setBestExposure(parameters, newSetting); //曝光
+        camera.setParameters(parameters);
     }
 
     /**
@@ -208,129 +201,201 @@ public final class CameraManager {
         }
     }
 
-    /**
-     * Calculates the framing rect which the UI should draw to show the user where to place the
-     * barcode. This target helps with alignment as well as forces the user to hold the device
-     * far enough away to ensure the image will be in focus.
-     *
-     * @return The rectangle to draw on screen in window coordinates.
-     */
-    public synchronized Rect getFramingRect() {
-        if (framingRect == null) {
-            if (camera == null) {
-                return null;
-            }
-            Point screenResolution = configManager.getScreenResolution();
-            if (screenResolution == null) {
-                // Called early, before init even finished
-                return null;
-            }
 
-            int width = findDesiredDimensionInRange(screenResolution.x, MIN_FRAME_WIDTH, MAX_FRAME_WIDTH);
-            int height = findDesiredDimensionInRange(screenResolution.y, MIN_FRAME_HEIGHT, MAX_FRAME_HEIGHT);
+    private void setDesiredCameraParameters(OpenCamera openCamera, boolean safeMode) {
+        Camera theCamera = openCamera.getCamera();
+        Camera.Parameters parameters = theCamera.getParameters();
 
-            int leftOffset = (screenResolution.x - width) / 2;
-            int topOffset = (screenResolution.y - height) / 2;
-            framingRect = new Rect(leftOffset, topOffset, leftOffset + width, topOffset + height);
-            Log.d(TAG, "Calculated framing rect: " + framingRect);
+        if (parameters == null) {
+            Log.w(TAG, "Device error: no camera parameters are available. Proceeding without configuration.");
+            return;
         }
-        return framingRect;
+
+        Log.i(TAG, "Initial camera parameters: " + parameters.flatten());
+
+        if (safeMode) {
+            Log.w(TAG, "In camera config safe mode -- most settings will not be honored");
+        }
+
+        CameraConfigurationUtils.setFocus(parameters, true, true, safeMode);//自动对焦
+
+        if (!safeMode) {
+            //反色，扫描黑色背景上的白色条码时
+//            CameraConfigurationUtils.setInvertColor(parameters);
+
+            //使用条形码场景匹配
+            CameraConfigurationUtils.setBarcodeSceneMode(parameters);
+
+            //以下三个设置：使用距离测量
+//            CameraConfigurationUtils.setVideoStabilization(parameters);
+//            CameraConfigurationUtils.setFocusArea(parameters);
+//            CameraConfigurationUtils.setMetering(parameters);
+
+            //SetRecordingHint to true also a workaround for low framerate on Nexus 4
+            //https://stackoverflow.com/questions/14131900/extreme-camera-lag-on-nexus-4
+            parameters.setRecordingHint(true);
+
+        }
+
+        screenPoint = new Point();
+        WindowManager windowManager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
+        windowManager.getDefaultDisplay().getSize(screenPoint);
+        previewSize = getBestPreviewSize(parameters, screenPoint);
+        parameters.setPreviewSize(previewSize.x, previewSize.y);
+
+        theCamera.setParameters(parameters);
+
+        int cameraDisplayOrientation = getCameraDisplayOrientation(context, openCamera.getId());
+        theCamera.setDisplayOrientation(cameraDisplayOrientation);
+
+        Camera.Parameters afterParameters = theCamera.getParameters();
+        Camera.Size afterSize = afterParameters.getPreviewSize();
+        if (afterSize != null && (previewSize.x != afterSize.width || previewSize.y != afterSize.height)) {
+            previewSize.x = afterSize.width;
+            previewSize.y = afterSize.height;
+        }
     }
 
-    private static int findDesiredDimensionInRange(int resolution, int hardMin, int hardMax) {
-        int dim = 5 * resolution / 8; // Target 5/8 of each dimension
-        if (dim < hardMin) {
-            return hardMin;
-        }
-        if (dim > hardMax) {
-            return hardMax;
-        }
-        return dim;
-    }
 
-    /**
-     * Like {@link #getFramingRect} but coordinates are in terms of the preview frame,
-     * not UI / screen.
-     *
-     * @return {@link Rect} expressing barcode scan area in terms of the preview size
-     */
-    public synchronized Rect getFramingRectInPreview() {
-        if (framingRectInPreview == null) {
-            Rect framingRect = getFramingRect();
-            if (framingRect == null) {
-                return null;
+    public synchronized Rect framingRectInPreview(Rect framingRect){
+        Rect framingRectInPreview = new Rect(0, 0, previewSize.x, previewSize.y);
+        try {
+            if (framingRect != null) {
+                boolean isCameraPortrait = previewSize.x < previewSize.y;
+                boolean isScreenPortrait = screenPoint.x < screenPoint.y;
+                if (isCameraPortrait == isScreenPortrait) {
+                    framingRectInPreview.left = framingRect.left * previewSize.x / screenPoint.x;
+                    framingRectInPreview.right = framingRect.right * previewSize.x / screenPoint.x;
+                    framingRectInPreview.top = framingRect.top * previewSize.y / screenPoint.y;
+                    framingRectInPreview.bottom = framingRect.bottom * previewSize.y / screenPoint.y;
+                } else {
+                    framingRectInPreview.left = framingRect.top * previewSize.y / screenPoint.x;
+                    framingRectInPreview.right = framingRect.bottom * previewSize.y / screenPoint.x;
+                    framingRectInPreview.top = framingRect.left * previewSize.x / screenPoint.y;
+                    framingRectInPreview.bottom = framingRect.right * previewSize.x / screenPoint.y;
+                }
             }
-            Rect rect = new Rect(framingRect);
-            Point cameraResolution = configManager.getCameraResolution();
-            Point screenResolution = configManager.getScreenResolution();
-            if (cameraResolution == null || screenResolution == null) {
-                // Called early, before init even finished
-                return null;
-            }
-            rect.left = rect.left * cameraResolution.x / screenResolution.x;
-            rect.right = rect.right * cameraResolution.x / screenResolution.x;
-            rect.top = rect.top * cameraResolution.y / screenResolution.y;
-            rect.bottom = rect.bottom * cameraResolution.y / screenResolution.y;
-            framingRectInPreview = rect;
+        } catch (Exception e) {
+            e.printStackTrace();
         }
         return framingRectInPreview;
     }
 
 
     /**
-     * Allows third party apps to specify the camera ID, rather than determine
-     * it automatically based on available cameras and their orientation.
-     *
-     * @param cameraId camera ID of the camera to use. A negative value means "no preference".
+     * 设置相机预览旋转方向
+     * @param context
+     * @param cameraId
      */
-    public synchronized void setManualCameraId(int cameraId) {
-        requestedCameraId = cameraId;
-    }
-
-    /**
-     * Allows third party apps to specify the scanning rectangle dimensions, rather than determine
-     * them automatically based on screen resolution.
-     *
-     * @param width  The width in pixels to scan.
-     * @param height The height in pixels to scan.
-     */
-    public synchronized void setManualFramingRect(int width, int height) {
-        if (initialized) {
-            Point screenResolution = configManager.getScreenResolution();
-            if (width > screenResolution.x) {
-                width = screenResolution.x;
-            }
-            if (height > screenResolution.y) {
-                height = screenResolution.y;
-            }
-            int leftOffset = (screenResolution.x - width) / 2;
-            int topOffset = (screenResolution.y - height) / 2;
-            framingRect = new Rect(leftOffset, topOffset, leftOffset + width, topOffset + height);
-            Log.d(TAG, "Calculated manual framing rect: " + framingRect);
-            framingRectInPreview = null;
-        } else {
-            requestedFramingRectWidth = width;
-            requestedFramingRectHeight = height;
+    private int getCameraDisplayOrientation(Context context, int cameraId){
+        WindowManager windowManager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
+        int rotation = windowManager.getDefaultDisplay().getRotation();
+        int degrees = 0;
+        switch (rotation) {
+            case Surface.ROTATION_0:
+                degrees = 0;
+                break;
+            case Surface.ROTATION_90:
+                degrees = 90;
+                break;
+            case Surface.ROTATION_180:
+                degrees = 180;
+                break;
+            case Surface.ROTATION_270:
+                degrees = 270;
+                break;
+            default:
+                // Have seen this return incorrect values like -90
+                if (rotation % 90 == 0) {
+                    degrees = (360 + rotation) % 360;
+                } else {
+                    throw new IllegalArgumentException("Bad rotation: " + rotation);
+                }
         }
-    }
-
-    /**
-     * A factory method to build the appropriate LuminanceSource object based on the format
-     * of the preview buffers, as described by Camera.Parameters.
-     *
-     * @param data   A preview frame.
-     * @param width  The width of the image.
-     * @param height The height of the image.
-     * @return A PlanarYUVLuminanceSource instance.
-     */
-    public PlanarYUVLuminanceSource buildLuminanceSource(byte[] data, int width, int height) {
-        Rect rect = getFramingRectInPreview();
-        if (rect == null) {
-            return null;
+        Camera.CameraInfo cameraInfo = new Camera.CameraInfo();
+        Camera.getCameraInfo(cameraId, cameraInfo);
+        int result;
+        if (cameraInfo.facing == Camera.CameraInfo.CAMERA_FACING_FRONT){
+            result = (cameraInfo.orientation + degrees) % 360;
+            result = (360 - result) % 360;
+        }else {
+            result = (cameraInfo.orientation - degrees + 360) % 360;
         }
-        // Go ahead and assume it's YUV rather than die.
-        return new PlanarYUVLuminanceSource(data, width, height, rect.left, rect.top,
-                rect.width(), rect.height(), false);
+        return result;
     }
 
+
+    private Point getBestPreviewSize(Camera.Parameters parameters, Point screenResolution){
+        int MIN_PREVIEW_PIXELS = 480 * 320; // normal screen
+        double MAX_ASPECT_DISTORTION = 0.15;
+
+        List<Camera.Size> rawSupportedPreviewSizes = parameters.getSupportedPreviewSizes();
+        if (rawSupportedPreviewSizes == null){
+            Camera.Size defaultSize = parameters.getPreviewSize();
+            if (defaultSize == null){
+                throw new IllegalStateException("Parameters contained no preview size!");
+            }
+            return new Point(defaultSize.width, defaultSize.height);
+        }
+
+        Point screenSize = screenResolution;
+
+        Camera.Size defaultSize = rawSupportedPreviewSizes.get(0);
+        boolean isCameraPortrait = defaultSize.width < defaultSize.height;
+        boolean isScreenPortrait = screenResolution.x < screenResolution.y;
+        if (isCameraPortrait != isScreenPortrait){
+            screenSize = new Point(screenResolution.y, screenResolution.x);
+        }
+
+        double screenAspectRatio = screenSize.x / (double)screenSize.y;
+
+        List<Camera.Size> supportedPreviewSizes = new ArrayList<>(rawSupportedPreviewSizes);
+        Iterator<Camera.Size> iterator = supportedPreviewSizes.iterator();
+        while (iterator.hasNext()){
+            Camera.Size size = iterator.next();
+            int width = size.width;
+            int height = size.height;
+
+            //正好和预览框宽高一样的，直接返回
+            if (width == screenSize.x && height == screenSize.y){
+                return new Point(width, height);
+            }
+
+            //去除分辨率较小的
+            if (width * height < MIN_PREVIEW_PIXELS){
+                iterator.remove();
+                continue;
+            }
+
+            //去除宽高比和预览框宽高比差别较大的
+            double aspectRatio = width / (double) height;
+            double distortion = Math.abs(aspectRatio - screenAspectRatio);
+            if (distortion > MAX_ASPECT_DISTORTION) {
+                iterator.remove();
+                continue;
+            }
+        }
+
+        //相机支持的预览尺寸按照由大到小的顺序排列
+        Collections.sort(supportedPreviewSizes, new Comparator<Camera.Size>() {
+            @Override
+            public int compare(Camera.Size a, Camera.Size b) {
+                int aPixels = a.height * a.width;
+                int bPixels = b.height * b.width;
+                if (bPixels < aPixels) {
+                    return -1;
+                }
+                if (bPixels > aPixels) {
+                    return 1;
+                }
+                return 0;
+            }
+        });
+
+        if (!supportedPreviewSizes.isEmpty()){
+            Camera.Size largestPreview = supportedPreviewSizes.get(0);
+            return new Point(largestPreview.width, largestPreview.height);
+        }
+        return new Point(defaultSize.width, defaultSize.height);
+    }
 }

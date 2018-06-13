@@ -1,10 +1,15 @@
 package com.google.zxing;
 
 import android.content.Context;
+import android.graphics.Rect;
 import android.os.Message;
 import android.view.SurfaceHolder;
 
 import com.google.zxing.camera.CameraManager;
+import com.google.zxing.decode.CaptureHandler;
+import com.google.zxing.decode.DecodeFormatManager;
+import com.google.zxing.decode.ResultCallback;
+import com.google.zxing.view.QRView;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -12,29 +17,14 @@ import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.Map;
 
-/**
- * Author: 杨进玺
- * Time: 2018/5/24  16:17
- */
-public class QRManager {
-    private static QRManager instance;
 
+public class QRManager {
     private CameraManager cameraManager;
     private CaptureHandler captureHandler;
     private ResultCallback resultCallback;
     private QRView qrView;
 
     private Map<DecodeHintType, Object> hints;
-
-    private QRManager() {
-    }
-
-    public synchronized static QRManager getInstance(){
-        if (instance == null){
-            instance = new QRManager();
-        }
-        return instance;
-    }
 
 
     public void openCamera(Context context, SurfaceHolder surfaceHolder) throws IOException {
@@ -44,7 +34,8 @@ public class QRManager {
     }
 
     public void startScan(){
-        captureHandler = new CaptureHandler(cameraManager, qrView.getScanCodeRect());
+        Rect rect = cameraManager.framingRectInPreview(qrView.getScanCodeRect());
+        captureHandler = new CaptureHandler(cameraManager, rect, getHint(), resultCallback);
         Message.obtain(captureHandler, R.id.zxing_restart_preview).sendToTarget();
         qrView.startAnim();
     }
@@ -70,10 +61,6 @@ public class QRManager {
         this.resultCallback = resultCallback;
     }
 
-    public ResultCallback getResultCallback() {
-        return resultCallback;
-    }
-
     public void setQrView(QRView qrView) {
         this.qrView = qrView;
     }
@@ -97,9 +84,5 @@ public class QRManager {
 
     public void setHints(Map<DecodeHintType, Object> hints) {
         this.hints = hints;
-    }
-
-    public CameraManager getCameraManager() {
-        return cameraManager;
     }
 }

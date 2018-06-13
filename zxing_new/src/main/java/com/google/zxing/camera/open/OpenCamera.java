@@ -48,6 +48,10 @@ public final class OpenCamera {
         return orientation;
     }
 
+    public int getId() {
+        return index;
+    }
+
     @Override
     public String toString() {
         return "Camera #" + index + " : " + facing + ',' + orientation;

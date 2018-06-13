@@ -1,6 +1,8 @@
-package com.google.zxing;
+package com.google.zxing.decode;
 
 import android.graphics.Bitmap;
+
+import com.google.zxing.Result;
 
 /**
  * 扫码结果回调
