@@ -19,6 +19,7 @@ import java.io.IOException;
 public class QRActivity extends AppCompatActivity {
     boolean hasSurface;
     private Button btnAction;
+    private Button btnBitmap;
     private SurfaceView surfaceView;
     private QRManager qrManager;
     private QRViewImpl qrView;
@@ -33,10 +34,18 @@ public class QRActivity extends AppCompatActivity {
 
         qrView = (QRViewImpl) findViewById(R.id.qr_view);
         btnAction = (Button)findViewById(R.id.btn_action);
+        btnBitmap = (Button)findViewById(R.id.btn_bitmap);
         btnAction.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 action();
+            }
+        });
+
+        btnBitmap.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                QRManager.DEBUG_RESULT = true;
             }
         });
 
@@ -65,6 +74,7 @@ public class QRActivity extends AppCompatActivity {
             public void onResult(Result rawResult, Bitmap barcode, float scaleFactor) {
                 Toast.makeText(QRActivity.this, rawResult.getText(), Toast.LENGTH_SHORT).show();
                 qrView.drawResultBitmap(barcode);
+                btnAction.setText("开启扫描");
             }
         };
     }

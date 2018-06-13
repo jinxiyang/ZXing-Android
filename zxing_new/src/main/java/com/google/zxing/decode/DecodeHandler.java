@@ -28,6 +28,7 @@ import com.google.zxing.BinaryBitmap;
 import com.google.zxing.DecodeHintType;
 import com.google.zxing.MultiFormatReader;
 import com.google.zxing.PlanarYUVLuminanceSource;
+import com.google.zxing.QRManager;
 import com.google.zxing.R;
 import com.google.zxing.ReaderException;
 import com.google.zxing.Result;
@@ -83,19 +84,19 @@ public final class DecodeHandler extends Handler {
         long start = System.currentTimeMillis();
 
         //一维码横向只能横向解析,预览方向和手机方向不一致时，需旋转图片解析
-        boolean isCameraPortrait = width < height;
-        boolean isScreenPortrait = framingRectInPreview.width() < framingRectInPreview.height();
-        if (isCameraPortrait != isScreenPortrait) {
-            byte[] rotatedData = new byte[data.length];
-            for (int y = 0; y < height; y++) {
-                for (int x = 0; x < width; x++)
-                    rotatedData[x * height + height - y - 1] = data[x + y * width];
-            }
-            int tmp = width;
-            width = height;
-            height = tmp;
-            data = rotatedData;
-        }
+//        boolean isCameraPortrait = width < height;
+//        boolean isScreenPortrait = framingRectInPreview.width() < framingRectInPreview.height();
+//        if (isCameraPortrait != isScreenPortrait) {
+//            byte[] rotatedData = new byte[data.length];
+//            for (int y = 0; y < height; y++) {
+//                for (int x = 0; x < width; x++)
+//                    rotatedData[x * height + height - y - 1] = data[x + y * width];
+//            }
+//            int tmp = width;
+//            width = height;
+//            height = tmp;
+//            data = rotatedData;
+//        }
 
         Result rawResult = null;
         PlanarYUVLuminanceSource source = buildLuminanceSource(data, width, height);
@@ -108,6 +109,11 @@ public final class DecodeHandler extends Handler {
             } finally {
                 multiFormatReader.reset();
             }
+        }
+
+        if (QRManager.DEBUG_RESULT){
+            rawResult = new Result("debug 扫到了", null, null, null);
+            QRManager.DEBUG_RESULT = false;
         }
 
 

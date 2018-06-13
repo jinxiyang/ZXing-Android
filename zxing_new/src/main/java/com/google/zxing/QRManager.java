@@ -19,6 +19,9 @@ import java.util.Map;
 
 
 public class QRManager {
+    public static boolean DEBUG_RESULT = false;
+
+
     private CameraManager cameraManager;
     private CaptureHandler captureHandler;
     private ResultCallback resultCallback;
