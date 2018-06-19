@@ -60,7 +60,7 @@ public final class DecodeThread extends Thread {
     @Override
     public void run() {
         Looper.prepare();
-        handler = new DecodeHandler(captureHandler, hints, framingRectInPreview, true);
+        handler = new DecodeHandler(captureHandler, hints, framingRectInPreview, true, true);
         handlerInitLatch.countDown();
         Looper.loop();
     }

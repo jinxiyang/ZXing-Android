@@ -3,7 +3,6 @@ package com.google.zxing;
 import android.content.Context;
 import android.graphics.Point;
 import android.graphics.Rect;
-import android.hardware.Camera;
 import android.os.Message;
 import android.view.SurfaceHolder;
 
@@ -21,9 +20,6 @@ import java.util.Map;
 
 
 public class QRManager {
-    public static boolean DEBUG_RESULT = false;
-
-
     private CameraManager cameraManager;
     private CaptureHandler captureHandler;
     private ResultCallback resultCallback;
@@ -37,11 +33,6 @@ public class QRManager {
         cameraManager.openDriver(surfaceHolder);
         cameraManager.startPreview();
     }
-
-    public void oneShotPreview(Camera.PreviewCallback previewCallback){
-        cameraManager.oneShotPreview(previewCallback);
-    }
-
 
     public void startScan(){
         Rect rect = cameraManager.framingRectInPreview(qrView.getScanCodeRect());
@@ -94,10 +85,5 @@ public class QRManager {
 
     public void setHints(Map<DecodeHintType, Object> hints) {
         this.hints = hints;
-    }
-
-
-    public Point getPreviewSize(){
-        return cameraManager.getPreviewSize();
     }
 }

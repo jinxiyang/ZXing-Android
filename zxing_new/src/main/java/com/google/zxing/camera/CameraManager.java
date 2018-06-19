@@ -280,10 +280,10 @@ public final class CameraManager {
                     framingRectInPreview.top = framingRect.top * previewSize.y / screenPoint.y;
                     framingRectInPreview.bottom = framingRect.bottom * previewSize.y / screenPoint.y;
                 } else {
-                    framingRectInPreview.left = framingRect.top * previewSize.y / screenPoint.x;
-                    framingRectInPreview.right = framingRect.bottom * previewSize.y / screenPoint.x;
-                    framingRectInPreview.top = framingRect.left * previewSize.x / screenPoint.y;
-                    framingRectInPreview.bottom = framingRect.right * previewSize.x / screenPoint.y;
+                    framingRectInPreview.left = framingRect.left * previewSize.y / screenPoint.x;
+                    framingRectInPreview.right = framingRect.right * previewSize.y / screenPoint.x;
+                    framingRectInPreview.top = framingRect.top * previewSize.x / screenPoint.y;
+                    framingRectInPreview.bottom = framingRect.bottom * previewSize.x / screenPoint.y;
                 }
             }
         } catch (Exception e) {
@@ -408,16 +408,5 @@ public final class CameraManager {
             return new Point(largestPreview.width, largestPreview.height);
         }
         return new Point(defaultSize.width, defaultSize.height);
-    }
-
-    public synchronized void oneShotPreview(Camera.PreviewCallback previewCallback){
-        if (camera != null){
-            camera.getCamera().setOneShotPreviewCallback(previewCallback);
-        }
-    }
-
-
-    public Point getPreviewSize() {
-        return previewSize;
     }
 }

@@ -28,9 +28,7 @@ import com.google.zxing.BinaryBitmap;
 import com.google.zxing.DecodeHintType;
 import com.google.zxing.MultiFormatReader;
 import com.google.zxing.PlanarYUVLuminanceSource;
-import com.google.zxing.QRManager;
 import com.google.zxing.R;
-import com.google.zxing.ReaderException;
 import com.google.zxing.Result;
 import com.google.zxing.common.HybridBinarizer;
 
@@ -45,18 +43,21 @@ public final class DecodeHandler extends Handler {
     private MultiFormatReader multiFormatReader;
     private Rect framingRectInPreview;
     private boolean resultContainBitmap;
+    private boolean rotateImage;
 
     private boolean running = true;
 
     DecodeHandler(CaptureHandler captureHandler,
                   Map<DecodeHintType, Object> hints,
                   Rect framingRectInPreview,
-                  boolean resultContainBitmap) {
+                  boolean resultContainBitmap,
+                  boolean rotateImage) {
         this.captureHandler = captureHandler;
         multiFormatReader = new MultiFormatReader();
         multiFormatReader.setHints(hints);
         this.framingRectInPreview = framingRectInPreview;
         this.resultContainBitmap = resultContainBitmap;
+        this.rotateImage = rotateImage;
     }
 
     @Override
@@ -84,52 +85,17 @@ public final class DecodeHandler extends Handler {
         long start = System.currentTimeMillis();
 
         //一维码横向只能横向解析,预览方向和手机方向不一致时，需旋转图片解析
-//        boolean isCameraPortrait = width < height;
-//        boolean isScreenPortrait = framingRectInPreview.width() < framingRectInPreview.height();
-//        if (isCameraPortrait != isScreenPortrait) {
-//            byte[] rotatedData = new byte[data.length];
-//            for (int y = 0; y < height; y++) {
-//                for (int x = 0; x < width; x++)
-//                    rotatedData[x * height + height - y - 1] = data[x + y * width];
-//            }
-//            int tmp = width;
-//            width = height;
-//            height = tmp;
-//            data = rotatedData;
-//        }
-
-        if (QRManager.DEBUG_RESULT){
-            int destWidth = 480;
-            int destHeight = 320;
-
-            int startX = 800;
-            int startY = 300;
-            boolean equeal = true;
-
-            byte[] yuvCrop = new byte[0];
-            byte[] yuvCropAndRotate90 = new byte[0];
-            try {
-                yuvCrop = yuvCrop(yuvRotate90(data, width, height), height, width, startX, startY, destWidth, destHeight);
-                yuvCropAndRotate90 = yuvCropAndRotate90(data, width, height, startX, startY, destWidth, destHeight);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-
-            if (yuvCrop.length == yuvCropAndRotate90.length){
-                for (int i = 0; i < yuvCrop.length; i++){
-                    byte b1 = yuvCrop[i];
-                    byte b2 = yuvCropAndRotate90[i];
-                    if (b1 != b2){
-                        equeal = false;
-                        break;
-                    }
+        if (rotateImage) {
+            byte[] rotatedData = new byte[data.length];
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++){
+                    rotatedData[x * height + height - y - 1] = data[x + y * width];
                 }
-            }else {
-                equeal = false;
             }
-
-            Log.i(TAG, "decode: " + equeal);
-
+            int tmp = width;
+            width = height;
+            height = tmp;
+            data = rotatedData;
         }
 
         Result rawResult = null;
@@ -138,18 +104,13 @@ public final class DecodeHandler extends Handler {
             BinaryBitmap bitmap = new BinaryBitmap(new HybridBinarizer(source));
             try {
                 rawResult = multiFormatReader.decodeWithState(bitmap);
-            } catch (ReaderException re) {
+            } catch (Exception re) {
+                re.printStackTrace();
                 // continue
             } finally {
                 multiFormatReader.reset();
             }
         }
-
-        if (QRManager.DEBUG_RESULT){
-            rawResult = new Result("debug 扫到了", null, null, null);
-            QRManager.DEBUG_RESULT = false;
-        }
-
 
         if (captureHandler != null){
             if (rawResult != null){
@@ -169,18 +130,6 @@ public final class DecodeHandler extends Handler {
         long end = System.currentTimeMillis();
         Log.d(TAG, "Found barcode in " + (end - start) + " ms");
     }
-
-    private void bundleThumbnail(PlanarYUVLuminanceSource source, Bundle bundle) {
-        int[] pixels = source.renderThumbnail();
-        int width = source.getThumbnailWidth();
-        int height = source.getThumbnailHeight();
-        Bitmap bitmap = Bitmap.createBitmap(pixels, 0, width, width, height, Bitmap.Config.ARGB_8888);
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 50, out);
-        bundle.putByteArray(DecodeThread.BARCODE_BITMAP, out.toByteArray());
-        bundle.putFloat(DecodeThread.BARCODE_SCALED_FACTOR, (float) width / source.getWidth());
-    }
-
 
     /**
      * A factory method to build the appropriate LuminanceSource object based on the format
@@ -203,49 +152,14 @@ public final class DecodeHandler extends Handler {
     }
 
 
-    /**
-     * yuv格式数据逆时针旋转90°，丢失uv量（即色彩值）
-     * @param src
-     * @param width
-     * @param height
-     * @return
-     */
-    public static byte[] yuvRotate90(byte[] src, int width, int height) {
-        byte[] dest = new byte[src.length];
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++)
-                dest[x * height + height - y - 1] = src[x + y * width];
-        }
-        return dest;
-    }
-
-
-    public static byte[] yuvCrop(byte[] src, int srcWidth, int srcHeight, int startX, int startY, int destWidth, int destHeight) {
-        byte[] dest = new byte[destWidth * destHeight * 3 / 2];
-        for (int y = 0; y < destHeight; y++) {
-            for (int x = 0; x < destWidth; x++)
-                dest[x + y * destWidth] = src[x + startX + (y + startY) * srcWidth];
-        }
-        return dest;
-    }
-
-
-    static int h = 5;
-
-    public static byte[] yuvCropAndRotate90(byte[] src, int srcWidth, int srcHeight, int startX, int startY, int destWidth, int destHeight) {
-        h = 5;
-        byte[] dest = new byte[destHeight * destWidth * 3 / 2];
-        for (int y = 0; y < destHeight; y++) {
-            for (int x = 0; x < destWidth; x++)
-                try {
-                    dest[x + y * destWidth] = src[(srcHeight - srcWidth + startY + destWidth - x - 1) * srcHeight + startX + y];
-                } catch (Exception e) {
-                    if (h > 0) {
-                        Log.i(TAG, "yuvCropAndRotate90: " + x + "  " + y);
-                        h--;
-                    }
-                }
-        }
-        return dest;
+    private void bundleThumbnail(PlanarYUVLuminanceSource source, Bundle bundle) {
+        int[] pixels = source.renderThumbnail();
+        int width = source.getThumbnailWidth();
+        int height = source.getThumbnailHeight();
+        Bitmap bitmap = Bitmap.createBitmap(pixels, 0, width, width, height, Bitmap.Config.ARGB_8888);
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 50, out);
+        bundle.putByteArray(DecodeThread.BARCODE_BITMAP, out.toByteArray());
+        bundle.putFloat(DecodeThread.BARCODE_SCALED_FACTOR, (float) width / source.getWidth());
     }
 }

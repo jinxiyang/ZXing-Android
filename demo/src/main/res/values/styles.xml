@@ -11,6 +11,8 @@
         <item name="android:buttonStyle">@style/Base.Widget.AppCompat.Button.Small</item>
         <!--设置不自动转为大写，解决button上的英文自动转为大写-->
         <item name="android:textAllCaps">false</item>
+
+        <item name="android:windowTranslucentStatus">true</item>
     </style>
 
 </resources>

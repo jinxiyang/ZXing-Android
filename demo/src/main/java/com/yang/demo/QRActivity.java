@@ -1,12 +1,6 @@
 package com.yang.demo;
 
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.ImageFormat;
-import android.graphics.Point;
-import android.graphics.Rect;
-import android.graphics.YuvImage;
-import android.hardware.Camera;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.view.SurfaceHolder;
@@ -20,13 +14,11 @@ import com.google.zxing.Result;
 import com.google.zxing.decode.ResultCallback;
 import com.google.zxing.view.QRViewImpl;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
 public class QRActivity extends AppCompatActivity {
     boolean hasSurface;
     private Button btnAction;
-    private Button btnBitmap;
     private SurfaceView surfaceView;
     private QRManager qrManager;
     private QRViewImpl qrView;
@@ -41,31 +33,10 @@ public class QRActivity extends AppCompatActivity {
 
         qrView = (QRViewImpl) findViewById(R.id.qr_view);
         btnAction = (Button)findViewById(R.id.btn_action);
-        btnBitmap = (Button)findViewById(R.id.btn_bitmap);
         btnAction.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 action();
-            }
-        });
-
-        btnBitmap.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                QRManager.DEBUG_RESULT = true;
-
-//                qrManager.oneShotPreview(new Camera.PreviewCallback() {
-//                    @Override
-//                    public void onPreviewFrame(byte[] data, Camera camera) {
-//                        Point previewSize = qrManager.getPreviewSize();
-//                        YuvImage yuvimage = new YuvImage(data, ImageFormat.NV21, previewSize.x, previewSize.y, null);
-//                        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-//                        yuvimage.compressToJpeg(new Rect(0, 0, previewSize.x, previewSize.y), 80, baos); //这里 80 是图片质量,取值范围 0-100,100为品质最高
-//                        data = baos.toByteArray();//这时候 bmp 就不为 null 了
-//                        Bitmap bmp = BitmapFactory.decodeByteArray(data, 0, data.length);
-//                        qrView.drawResultBitmap(bmp);
-//                    }
-//                });
             }
         });
 
