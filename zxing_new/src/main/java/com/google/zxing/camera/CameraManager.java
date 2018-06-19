@@ -211,6 +211,17 @@ public final class CameraManager {
             return;
         }
 
+        int previewFormat = parameters.getPreviewFormat();
+        Log.i(TAG, "previewFormat: " + previewFormat);
+
+        List<Integer> supportedPreviewFormats = parameters.getSupportedPreviewFormats();
+        if (supportedPreviewFormats != null && supportedPreviewFormats.size() > 0){
+            for (Integer integer : supportedPreviewFormats){
+                Log.i(TAG, "supportedPreviewFormats: " + integer);
+            }
+        }
+
+
         Log.i(TAG, "Initial camera parameters: " + parameters.flatten());
 
         if (safeMode) {
@@ -397,5 +408,16 @@ public final class CameraManager {
             return new Point(largestPreview.width, largestPreview.height);
         }
         return new Point(defaultSize.width, defaultSize.height);
+    }
+
+    public synchronized void oneShotPreview(Camera.PreviewCallback previewCallback){
+        if (camera != null){
+            camera.getCamera().setOneShotPreviewCallback(previewCallback);
+        }
+    }
+
+
+    public Point getPreviewSize() {
+        return previewSize;
     }
 }

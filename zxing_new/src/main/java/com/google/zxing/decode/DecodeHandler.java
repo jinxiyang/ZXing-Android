@@ -98,6 +98,40 @@ public final class DecodeHandler extends Handler {
 //            data = rotatedData;
 //        }
 
+        if (QRManager.DEBUG_RESULT){
+            int destWidth = 480;
+            int destHeight = 320;
+
+            int startX = 800;
+            int startY = 300;
+            boolean equeal = true;
+
+            byte[] yuvCrop = new byte[0];
+            byte[] yuvCropAndRotate90 = new byte[0];
+            try {
+                yuvCrop = yuvCrop(yuvRotate90(data, width, height), height, width, startX, startY, destWidth, destHeight);
+                yuvCropAndRotate90 = yuvCropAndRotate90(data, width, height, startX, startY, destWidth, destHeight);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            if (yuvCrop.length == yuvCropAndRotate90.length){
+                for (int i = 0; i < yuvCrop.length; i++){
+                    byte b1 = yuvCrop[i];
+                    byte b2 = yuvCropAndRotate90[i];
+                    if (b1 != b2){
+                        equeal = false;
+                        break;
+                    }
+                }
+            }else {
+                equeal = false;
+            }
+
+            Log.i(TAG, "decode: " + equeal);
+
+        }
+
         Result rawResult = null;
         PlanarYUVLuminanceSource source = buildLuminanceSource(data, width, height);
         if (source != null) {
@@ -168,4 +202,50 @@ public final class DecodeHandler extends Handler {
         return source;
     }
 
+
+    /**
+     * yuv格式数据逆时针旋转90°，丢失uv量（即色彩值）
+     * @param src
+     * @param width
+     * @param height
+     * @return
+     */
+    public static byte[] yuvRotate90(byte[] src, int width, int height) {
+        byte[] dest = new byte[src.length];
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++)
+                dest[x * height + height - y - 1] = src[x + y * width];
+        }
+        return dest;
+    }
+
+
+    public static byte[] yuvCrop(byte[] src, int srcWidth, int srcHeight, int startX, int startY, int destWidth, int destHeight) {
+        byte[] dest = new byte[destWidth * destHeight * 3 / 2];
+        for (int y = 0; y < destHeight; y++) {
+            for (int x = 0; x < destWidth; x++)
+                dest[x + y * destWidth] = src[x + startX + (y + startY) * srcWidth];
+        }
+        return dest;
+    }
+
+
+    static int h = 5;
+
+    public static byte[] yuvCropAndRotate90(byte[] src, int srcWidth, int srcHeight, int startX, int startY, int destWidth, int destHeight) {
+        h = 5;
+        byte[] dest = new byte[destHeight * destWidth * 3 / 2];
+        for (int y = 0; y < destHeight; y++) {
+            for (int x = 0; x < destWidth; x++)
+                try {
+                    dest[x + y * destWidth] = src[(srcHeight - srcWidth + startY + destWidth - x - 1) * srcHeight + startX + y];
+                } catch (Exception e) {
+                    if (h > 0) {
+                        Log.i(TAG, "yuvCropAndRotate90: " + x + "  " + y);
+                        h--;
+                    }
+                }
+        }
+        return dest;
+    }
 }
