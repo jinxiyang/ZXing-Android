@@ -20,12 +20,15 @@ import java.util.Map;
 
 
 public class QRManager {
+    public static boolean DEBUG = false;
+
     private CameraManager cameraManager;
     private CaptureHandler captureHandler;
     private ResultCallback resultCallback;
     private QRView qrView;
 
     private Map<DecodeHintType, Object> hints;
+    private boolean resultContainBitmap = true;
 
 
     public void openCamera(Context context, SurfaceHolder surfaceHolder) throws IOException {
@@ -35,8 +38,7 @@ public class QRManager {
     }
 
     public void startScan(){
-        Rect rect = cameraManager.framingRectInPreview(qrView.getScanCodeRect());
-        captureHandler = new CaptureHandler(cameraManager, rect, getHint(), resultCallback);
+        captureHandler = new CaptureHandler(cameraManager, qrView.getScanCodeRect(), getHint(), resultCallback, resultContainBitmap);
         Message.obtain(captureHandler, R.id.zxing_restart_preview).sendToTarget();
         qrView.startAnim();
     }

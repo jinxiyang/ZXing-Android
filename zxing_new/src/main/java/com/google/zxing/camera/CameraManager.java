@@ -56,6 +56,7 @@ public final class CameraManager {
 
     private Point screenPoint;
     private Point previewSize;
+    private int cameraDisplayOrientation;
 
     /**
      * Preview frames are delivered here, which we pass on to the registered handler. Make sure to
@@ -256,7 +257,7 @@ public final class CameraManager {
 
         theCamera.setParameters(parameters);
 
-        int cameraDisplayOrientation = getCameraDisplayOrientation(context, openCamera.getId());
+        cameraDisplayOrientation = getCameraDisplayOrientation(context, openCamera.getId());
         theCamera.setDisplayOrientation(cameraDisplayOrientation);
 
         Camera.Parameters afterParameters = theCamera.getParameters();
@@ -265,25 +266,50 @@ public final class CameraManager {
             previewSize.x = afterSize.width;
             previewSize.y = afterSize.height;
         }
+
+        Log.i(TAG, "previewSize: " + previewSize.toString());
+        Log.i(TAG, "screenPoint: " + previewSize.toString());
+        Log.i(TAG, "cameraDisplayOrientation: " + cameraDisplayOrientation);
     }
 
+    public Point getPreviewSize() {
+        return previewSize;
+    }
+
+    public Point getScreenPoint() {
+        return screenPoint;
+    }
+
+    public int getCameraDisplayOrientation() {
+        return cameraDisplayOrientation;
+    }
 
     public synchronized Rect framingRectInPreview(Rect framingRect){
         Rect framingRectInPreview = new Rect(0, 0, previewSize.x, previewSize.y);
         try {
             if (framingRect != null) {
-                boolean isCameraPortrait = previewSize.x < previewSize.y;
-                boolean isScreenPortrait = screenPoint.x < screenPoint.y;
-                if (isCameraPortrait == isScreenPortrait) {
+                //90°和270°时，帧图片会被顺时针旋转90，（解析一维码和图片角度有关，需要旋转镇图片，使条形码条纹竖着时才能解析）。计算矩形框在预览图片中的位置时需注意。
+                // 0°，90°的解析的帧图片与预览时是正立的，180°，270°的解析的帧图片与预览时是倒立的，获取解析结果图片时注意。
+                if (cameraDisplayOrientation == 0) {
                     framingRectInPreview.left = framingRect.left * previewSize.x / screenPoint.x;
                     framingRectInPreview.right = framingRect.right * previewSize.x / screenPoint.x;
                     framingRectInPreview.top = framingRect.top * previewSize.y / screenPoint.y;
                     framingRectInPreview.bottom = framingRect.bottom * previewSize.y / screenPoint.y;
-                } else {
+                } else if (cameraDisplayOrientation == 90){
                     framingRectInPreview.left = framingRect.left * previewSize.y / screenPoint.x;
                     framingRectInPreview.right = framingRect.right * previewSize.y / screenPoint.x;
                     framingRectInPreview.top = framingRect.top * previewSize.x / screenPoint.y;
                     framingRectInPreview.bottom = framingRect.bottom * previewSize.x / screenPoint.y;
+                }else if (cameraDisplayOrientation == 180){
+                    framingRectInPreview.left = previewSize.x * (screenPoint.x - framingRect.right) / screenPoint.x;
+                    framingRectInPreview.right = previewSize.x * (screenPoint.x - framingRect.left) / screenPoint.x;
+                    framingRectInPreview.top = previewSize.y * (screenPoint.y - framingRect.bottom) / screenPoint.y;
+                    framingRectInPreview.bottom = previewSize.y * (screenPoint.y - framingRect.top) / screenPoint.y;
+                }else if (cameraDisplayOrientation == 270){
+                    framingRectInPreview.left = previewSize.y * (screenPoint.x - framingRect.right) / screenPoint.x;
+                    framingRectInPreview.right = previewSize.y * (screenPoint.x - framingRect.left) / screenPoint.x;
+                    framingRectInPreview.top = previewSize.x * (screenPoint.y - framingRect.bottom) / screenPoint.y;
+                    framingRectInPreview.bottom = previewSize.x * (screenPoint.y - framingRect.top) / screenPoint.y;
                 }
             }
         } catch (Exception e) {

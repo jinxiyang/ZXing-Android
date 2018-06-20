@@ -137,8 +137,7 @@ public final class QRViewImpl extends View implements QRView{
 
         if (resultBitmap != null) {
             // Draw the opaque result bitmap over the scanning rectangle
-            paint.setAlpha(CURRENT_POINT_OPACITY);
-            Rect rect = new Rect(0, 0, resultBitmap.getWidth(), resultBitmap.getHeight());
+            Rect rect = new Rect(0, 80, resultBitmap.getWidth(), resultBitmap.getHeight());
             canvas.drawBitmap(resultBitmap, null, rect, paint);
         } else {
             // Draw a red "laser scanner" line through the middle to show decoding is active

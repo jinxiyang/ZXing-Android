@@ -17,6 +17,7 @@
 package com.google.zxing.decode;
 
 import android.graphics.Bitmap;
+import android.graphics.Matrix;
 import android.graphics.Rect;
 import android.os.Bundle;
 import android.os.Handler;
@@ -28,6 +29,7 @@ import com.google.zxing.BinaryBitmap;
 import com.google.zxing.DecodeHintType;
 import com.google.zxing.MultiFormatReader;
 import com.google.zxing.PlanarYUVLuminanceSource;
+import com.google.zxing.QRManager;
 import com.google.zxing.R;
 import com.google.zxing.Result;
 import com.google.zxing.common.HybridBinarizer;
@@ -43,7 +45,7 @@ public final class DecodeHandler extends Handler {
     private MultiFormatReader multiFormatReader;
     private Rect framingRectInPreview;
     private boolean resultContainBitmap;
-    private boolean rotateImage;
+    private int cameraDisplayOrientation;
 
     private boolean running = true;
 
@@ -51,13 +53,13 @@ public final class DecodeHandler extends Handler {
                   Map<DecodeHintType, Object> hints,
                   Rect framingRectInPreview,
                   boolean resultContainBitmap,
-                  boolean rotateImage) {
+                  int cameraDisplayOrientation) {
         this.captureHandler = captureHandler;
         multiFormatReader = new MultiFormatReader();
         multiFormatReader.setHints(hints);
         this.framingRectInPreview = framingRectInPreview;
         this.resultContainBitmap = resultContainBitmap;
-        this.rotateImage = rotateImage;
+        this.cameraDisplayOrientation = cameraDisplayOrientation;
     }
 
     @Override
@@ -84,9 +86,11 @@ public final class DecodeHandler extends Handler {
     private void decode(byte[] data, int width, int height) {
         long start = System.currentTimeMillis();
 
-        //一维码横向只能横向解析,预览方向和手机方向不一致时，需旋转图片解析
-        if (rotateImage) {
+        //一维码的解析和方向有关，竖屏模式（正竖屏、倒竖屏）时需要旋转，这里做了逆时针旋转90°.
+        // 0°，90°的解析的帧图片与预览时是正立的，180°，270°的解析的帧图片与预览时是倒立的，获取解析结果图片时注意。
+        if (cameraDisplayOrientation % 90 == 0 && cameraDisplayOrientation % 180 != 0) {//即竖屏模式（正竖屏、倒竖屏），正竖屏时相机预览旋转90°，倒竖屏旋转270°
             byte[] rotatedData = new byte[data.length];
+            //这里顺时针旋转90°，只保留y分量即明亮度，丢失uv分量即色彩和饱和度
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++){
                     rotatedData[x * height + height - y - 1] = data[x + y * width];
@@ -110,6 +114,11 @@ public final class DecodeHandler extends Handler {
             } finally {
                 multiFormatReader.reset();
             }
+        }
+
+        if (QRManager.DEBUG){
+            rawResult = new Result("lalalla", null, null, null);
+            QRManager.DEBUG = false;
         }
 
         if (captureHandler != null){
@@ -157,6 +166,11 @@ public final class DecodeHandler extends Handler {
         int width = source.getThumbnailWidth();
         int height = source.getThumbnailHeight();
         Bitmap bitmap = Bitmap.createBitmap(pixels, 0, width, width, height, Bitmap.Config.ARGB_8888);
+        if (cameraDisplayOrientation == 180 || cameraDisplayOrientation == 270) {//此时图片倒立的
+            Matrix matrix = new Matrix();
+            matrix.setRotate(180);
+            bitmap = Bitmap.createBitmap(bitmap, 0, 0, width, height, matrix, true);
+        }
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         bitmap.compress(Bitmap.CompressFormat.JPEG, 50, out);
         bundle.putByteArray(DecodeThread.BARCODE_BITMAP, out.toByteArray());

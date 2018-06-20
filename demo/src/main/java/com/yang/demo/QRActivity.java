@@ -40,6 +40,13 @@ public class QRActivity extends AppCompatActivity {
             }
         });
 
+        findViewById(R.id.btn_debug).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                QRManager.DEBUG = true;
+            }
+        });
+
         surfaceView.getHolder().addCallback(new SurfaceHolder.Callback() {
             @Override
             public void surfaceCreated(SurfaceHolder holder) {

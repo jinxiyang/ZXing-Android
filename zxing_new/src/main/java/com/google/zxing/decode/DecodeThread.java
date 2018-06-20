@@ -40,12 +40,20 @@ public final class DecodeThread extends Thread {
     private Handler handler;
     private CaptureHandler captureHandler;
     private Rect framingRectInPreview;
+    private boolean resultContainBitmap;
+    private int cameraDisplayOrientation;
 
-    public DecodeThread(CaptureHandler captureHandler, Rect framingRectInPreview, Map<DecodeHintType, Object> hints) {
+    public DecodeThread(CaptureHandler captureHandler,
+                        Rect framingRectInPreview,
+                        Map<DecodeHintType, Object> hints,
+                        boolean resultContainBitmap,
+                        int cameraDisplayOrientation) {
         this.captureHandler = captureHandler;
         this.framingRectInPreview = framingRectInPreview;
         handlerInitLatch = new CountDownLatch(1);
         this.hints = hints;
+        this.resultContainBitmap = resultContainBitmap;
+        this.cameraDisplayOrientation = cameraDisplayOrientation;
     }
 
     public Handler getHandler() {
@@ -60,7 +68,7 @@ public final class DecodeThread extends Thread {
     @Override
     public void run() {
         Looper.prepare();
-        handler = new DecodeHandler(captureHandler, hints, framingRectInPreview, true, true);
+        handler = new DecodeHandler(captureHandler, hints, framingRectInPreview, resultContainBitmap, cameraDisplayOrientation);
         handlerInitLatch.countDown();
         Looper.loop();
     }
